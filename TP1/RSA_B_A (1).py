@@ -1,5 +1,6 @@
 import hashlib
-
+import random
+import gmpy2
 
 def home_mod_exponent(x, y, n):  # exponentiation modulaire
     return pow(x, y, n)
@@ -32,7 +33,19 @@ def theoreme_chinois(c, d, n, p, q):
     h = ((mp - mq) * qinv) % p
     m = (mq + h * q) % n
 
-    return h, m
+    return m
+
+
+def extract_message(message):
+    parts = message.split("00||02||")
+    message = ''
+    for part in parts:
+        subparts = part.split("||00")
+        for subpart in subparts:
+            if not subpart.isdigit() and subpart:
+                message += subpart
+
+    return message
 
 
 def home_pgcd(a, b):  # recherche du pgcd
@@ -59,11 +72,57 @@ def home_int_to_string(x):  # pour transformer un int en string
     return txt
 
 
+def home_list_to_string(x):  # pour transformer une list en string
+    txt = ''
+    res1 = x
+    while res1 > 0:
+        res = res1 % (pow(2, 8))
+        res1 = (res1 - res) // (pow(2, 8))
+        txt = txt + chr(res)
+    return txt
+
+
 def mot20char():  # entrer le secret
     secret = input("donner un secret de 20 caractères au maximum : ")
     while len(secret) > 20:
         secret = input("c'est beaucoup trop long, 20 caractères S.V.P : ")
     return secret
+
+
+def mot():
+    secret = input("donner un secret : ")
+    return formalisation(cut_message(secret, 7))
+
+
+def cut_message(m, k):  # couper le message en k parties
+    if len(m) < k:  # on s'assure d'abord que le message est coupable
+        print("The message is too short to be cut in", k, "parts")
+        return None
+    n = len(m)
+    l = int(n / k)  # nombre de blocs nécessaire
+    m_list = []
+    if n % k != 0:
+        l = l + 1
+    for i in range(l):
+        m_list.append(m[i * k:(i + 1) * k])
+    print(m_list)
+    return m_list
+
+
+def formalisation(list):  # mettre le message sous la forme 00||02||xi||00||mi
+    # générer des nombres aléatoire
+    x_list = []
+    for i in range(len(list)):
+        x_list.append(random.randint(0, 255) + 1)
+
+    # créer des blocs de la forme 00||02||xi||00||mi
+    blocs = []
+    for i in range(len(list)):
+        bloc = ['00||', '02||', str(x_list[i]), '||00', str(list[i])]
+        sbloc = ''.join(bloc)
+        blocs.append(sbloc)
+    print(blocs)
+    return ''.join(blocs)
 
 
 # voici les éléments de la clé d'Alice
@@ -73,8 +132,8 @@ def mot20char():  # entrer le secret
 # x2a = 3503815992030544427564583819137  # q
 
 # SHA256 :
-x1a = 308249334062031477258773846229713851551399395547349750630417  # p
-x2a = 846025411846152701157476644291808391711883118054770827939223  # q
+x1a = 3413540401136516591521150540440519747493668091969270838391823306731626050553081496265161524563677773  # p
+x2a = 8492477647934073533907936878606529490877820810063627562309979164932115908064900020334463062426446547  # q
 
 na = x1a * x2a  # n
 phia = ((x1a - 1) * (x2a - 1)) // home_pgcd(x1a - 1, x2a - 1)
@@ -88,8 +147,8 @@ da = home_ext_euclide(ea, phia) % phia  # exposant privé
 # x2b = 8842546075387759637728590482297  # q
 
 # SHA256 :
-x1b = 428298297181381295673584418828175452446566908925780625842667  # p
-x2b = 194718763443470226939248740594808481835603249509314749864867  # q
+x1b = 6229856537876381926828501147482927302364921498661842284076882710125735604350342143830336693691118771  # p
+x2b = 3100850290997031733207481210210140920912497136874645179644558727218136844959910587732066887044353341  # q
 
 nb = x1b * x2b  # n
 phib = ((x1b - 1) * (x2b - 1)) // home_pgcd(x1b - 1, x2b - 1)
@@ -110,11 +169,13 @@ print("*******************************************************************")
 print("il est temps de lui envoyer votre secret ")
 print("*******************************************************************")
 x = input("appuyer sur entrer")
-secret = mot20char()
+
+secret = mot()
 print("*******************************************************************")
 print("voici la version en nombre décimal de ", secret, " : ")
 num_sec = home_string_to_int(secret)
 print(num_sec)
+
 print("voici le message chiffré avec la publique d'Alice : ")
 chif = home_mod_exponent(num_sec, ea, na)
 print(chif)
@@ -154,7 +215,7 @@ else:
 # THEOREME CHINOIS
 print("*******************************************************************")
 print("Alice déchiffre le message chiffré grâce au théorème chinois :")
-dechifCRT = home_int_to_string(theoreme_chinois(chif, da, na, x1a, x2a)[1])
+dechifCRT = home_int_to_string(theoreme_chinois(chif, da, na, x1a, x2a))
 print(dechifCRT)
 print("*******************************************************************")
 
@@ -166,11 +227,11 @@ print("*******************************************************************")
 
 print("Alice vérifie si elle obtient la même chose avec le hash de ", dechifCRT)
 
-Ahachis0 = hashlib.sha256(str(home_string_to_int(dechif)).encode('utf-8')).digest()  # SHA256 du message déchiffré
+Ahachis0 = hashlib.sha256(str(home_string_to_int(dechifCRT)).encode('utf-8')).digest()  # SHA256 du message déchiffré
 Ahachis3 = int.from_bytes(Ahachis0, byteorder='big')
 print(Ahachis3)
 print("La différence =", Ahachis3 - designe)
 if Ahachis3 - designeCRT == 0:
-    print("Alice : Bob m'a envoyé : ", dechif)
+    print("Alice : Bob m'a envoyé : ", extract_message(dechifCRT))
 else:
     print("oups")
