@@ -3,23 +3,36 @@ import random
 
 
 def home_mod_exponent(x, y, n):  # exponentiation modulaire
+    # Utilisation simple de l'exponentiation modulaire implémentée par Python
     return pow(x, y, n)
 
 
-def home_ext_euclide(a, b):  # algorithme d'euclide étendu pour la recherche de l'exposant secret
+def home_ext_euclide(a, b):  # Algorithme d'euclide étendu pour la recherche de l'exposant secret
+    # L'algorithme est disponible dans notre cours
+    # On initialise les coefficients de Bézout à (1,0) et (0,1)
+    # Ainsi que nos valeurs a et b, nommées r et r2, grâce à nos paramètres de fonction
     r, u, v = a, 1, 0
     r2, u2, v2 = b, 0, 1
 
+    # Tant que notre reste n'est pas nul,
     while r2 != 0:
+        # On récupère q, qui permet de modifier les coefficients de Bézout
         q = r // r2
+        # On met à jour nos nouvelles valeurs
+        # a prend la valeur de b
+        # b prend la valeur de r
+        # (u,v) et (u2, v2) sont mis à jours grâce aux formules u - q * u2 et v - q * v2
         r, u, v, r2, u2, v2 = r2, u2, v2, r - q * r2, u - q * u2, v - q * v2
     return u
 
 
-def theoreme_chinois(c, d, n, p, q):
+def theoreme_chinois(c, d, n, p, q): # théorème du reste chinois
+    # Si p est inférieur à q, nous devons inverser leur valeur respectives pour s'assurer que p soit toujours
+    # supérieur à q
     if p < q:
         q, p = p, q
 
+    # Nous réalisons les opérations décrites dans l'annexe de TP concernant le CRT
     phip = (p - 1)
     phiq = (q - 1)
     dp = d % phip
@@ -33,17 +46,24 @@ def theoreme_chinois(c, d, n, p, q):
     h = ((mp - mq) * qinv) % p
     m = (mq + h * q) % n
 
+    # Nous retournons m
     return m
 
 
-def extract_message(message):
-    message = message.replace("", "")
+def extract_message(message):   # Pour extraire seulement les informations essentielles au message
+    # Nous extrayons les informations nécessaires pour une bonne lecture du message
+
+    # On remplace tout d'abord le bourrage en espaces vides
+    message = message.replace("/x02", "")
+    # Nous divisons notre messages en blocs en les reconnaissant par leur début respectifs 00||02||
     parts = message.split("00||02||")
     message = ''
     for part in parts:
+        # Pour chaque sous partie de bloc, nous les splitons à nouveau par leur élément respectif ||00||
         subparts = part.split("||00||")
         for subpart in subparts:
             if not subpart.isdigit() and subpart:
+                # On ajoute au message final seulement les caractères du message
                 message += subpart
 
     return message
@@ -56,14 +76,14 @@ def home_pgcd(a, b):  # recherche du pgcd
         return home_pgcd(b, a % b)
 
 
-def home_string_to_int(x):  # pour transformer un string en int
+def home_string_to_int(x):  # transformer un string en int
     z = 0
     for i in reversed(range(len(x))):
         z = int(ord(x[i])) * pow(2, (8 * i)) + z
     return (z)
 
 
-def home_int_to_string(x):
+def home_int_to_string(x):  # transformer un int en string
     txt = ''
     res1 = x
     while res1 > 0:
@@ -73,39 +93,44 @@ def home_int_to_string(x):
     return txt
 
 
-def mot():
+def mot():  # demander un mot secret à l'utilisateur
     secret = input("Entrez un message secret : ")
-    rand = random.randint(10, 20)
-    print("Taille k : ", rand)
-    return formalisation(cut_message(secret, rand), rand)
+    # Nous créons une taille de bloc random de taille 5 à 15
+    rand = random.randint(5, 15)
+    # Tant que le random est trop grand, nous recréons une nouvelle taille k
+    while rand > len(secret) / 2:
+        rand = random.randint(10, 20)
+    print("Taille k : ", rand, "Longueur de message : ", len(secret))
+
+    # Nous constituons nos blocs grace à la fonction constitute_blocks
+    return constitute_blocks(cut_message(secret, rand), rand)
 
 
 def cut_message(message, k):  # couper le message en k parties
     parties = []
     for i in range(0, len(message), k):
-        partie = message[i:i + k]  # Découper la partie de taille k
-        parties.append(partie)  # Ajouter la partie au tableau
+        partie = message[i:i + k]  # Nous découpons notre message en parties de taille k
+        parties.append(partie)  # Nous ajoutons cette partie au tableau de parties
     return parties
 
 
-def formalisation(lst, k):  # mettre le message sous la forme 00||02||xi||00||mi
-    # créer des blocs de la forme 00||02||xi||00||mi
+def constitute_blocks(lst, k):  # message sous la forme 00||02||xi||00||mi+bourrage
     blocks = []
+    # Pour chaque élément de la liste de parties de message
     for i in range(len(lst)):
+        # Nous créons un nouveau x qui prend comme valeur random de 1 à 255
         x = random.randint(0, 255) + 1
-        block = '00||' + '02||' + str(x) + '||00||' + str(lst[i])
-        if len(block) < k:  # Ajouter le bourrage avec des \x02
-            block += '\x02' * (k - len(str(lst[i])))
+        # Nous ajoutons à notre partie de message les parties 00|02....
+        block = '00||02||' + str(x) + '||00||' + str(lst[i])
+        # Si la partie de message est plus petite que d'autres, alors il est nécessaire d'ajouter un bourrage
+        if len(str(lst[i])) < k:
+            # Ajouter le bourrage avec des /x02
+            block += '/x02' * (k - len(str(lst[i])))
+        # On ajoute nos blocs dans un tableau de blocs
         blocks.append(block)
     print(blocks)
+    # On retourne nos blocks sous forme de string
     return ''.join(blocks)
-
-
-# voici les éléments de la clé d'Alice
-
-# MD5 :
-# x1a = 2010942103422233250095259520183  # p
-# x2a = 3503815992030544427564583819137  # q
 
 # SHA256 :
 x1a = 22730680150470132399812423649013758565998892977817340568811461686886669950903983501444525685748588642260711586174062304975216661  # p
@@ -116,11 +141,6 @@ phia = ((x1a - 1) * (x2a - 1)) // home_pgcd(x1a - 1, x2a - 1)
 ea = 17  # exposant public
 da = home_ext_euclide(ea, phia) % phia  # exposant privé
 
-# voici les éléments de la clé de bob
-
-# MD5 :
-# x1b = 9434659759111223227678316435911  # p
-# x2b = 8842546075387759637728590482297  # q
 
 # SHA256 :
 x1b = 83476323070424806405536601489169514701945609142110738731389787915203168312416088618280604434360623994985324900938615942564005101  # p
@@ -140,7 +160,7 @@ num_sec = home_string_to_int(secret)
 
 chif = home_mod_exponent(num_sec, ea, na)
 
-Bhachis0 = hashlib.sha256(str(num_sec).encode('utf-8')).digest()  # SHA256 du message
+Bhachis0 = hashlib.sha256(str(num_sec).encode('utf-8',  errors='strict')).digest()  # SHA256 du message
 Bhachis3 = int.from_bytes(Bhachis0, byteorder='big')
 
 signe = home_mod_exponent(Bhachis3, db, nb)
@@ -166,7 +186,7 @@ print("|------------------------------------------------------------------------
 print("|    Alice vérifie si elle obtient la même chose avec le hash de ", dechifCRT)
 print("|-----------------------------------------------------------------------------------------------")
 
-Ahachis0 = hashlib.sha256(str(home_string_to_int(dechifCRT)).encode('utf-8')).digest()  # SHA256 du message déchiffré
+Ahachis0 = hashlib.sha256(str(home_string_to_int(dechifCRT)).encode('utf-8', errors='strict')).digest()  # SHA256 du message déchiffré
 Ahachis3 = int.from_bytes(Ahachis0, byteorder='big')
 print("Hachis obtenu : ", Ahachis3)
 
